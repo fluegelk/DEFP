@@ -1,0 +1,8 @@
+**/__pycache__/**
+venv
+**/DATASETS/
+**/outputs/**
+**/.ipynb_checkpoints/
+**/iframe_figures/
+*.pickle
+*.egg-info
