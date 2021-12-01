@@ -16,18 +16,34 @@ Feed-forward-only training attempts to solve these problems by effectively remov
 ### Installation
 
 This project can be installed as package using the provided `setup.py`, e.g. with  
-```pip install <path to project root>```
-or 
-```pip install <path to project root>[test]```
-to also install the test requirements.
+```
+pip install <path to project root>
+```
+
+### Usage
+
+`feedforward/main.py` offers a command line interface to start the training.  
+To get an overview of the available options, run 
+```
+python feedforward/main.py --help
+```
+
+For example, to train a single-layer fully-connected network with error-scaled DEFP on the synthetic dataset for 10 epochs, run
+```
+python feedforward/main.py --topology FC_500_FC_10 --algorithm Feed-Forward --dataset classification_synth --error-information delayed_error --epochs 10
+```
 
 ### Tests
 
 A simple test case is provided comparing the results after 10 epochs (test and train loss and top-1-accuracy) to results achieved with Frenkel's implementation.
 
 For reproducible results on GPU with CUDA version ≥10.2, the environment needs to be configured as explained in [https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility](https://docs.nvidia.com/cuda/cublas/index.html#cublasApi_reproducibility), e.g. with  
-```export CUBLAS_WORKSPACE_CONFIG=":4096:8"```
+```
+export CUBLAS_WORKSPACE_CONFIG=":4096:8"
+```
 
 To run the tests use
-```pytest <path to test sub-directory>```  
-The synthetic dataset can be generated with `synth_dataset_gen.py` from the DRTP repository.
+```
+pytest <path to test sub-directory>
+```  
+Note that each test case trains a network for 10 epochs. Running all tests can thus require a significant amount of time, depending on the available hardware.
