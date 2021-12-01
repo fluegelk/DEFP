@@ -1,6 +1,7 @@
 **/__pycache__/**
 venv
-**/DATASETS/
+**/DATASETS/*
+!DATASETS/classification
 **/outputs/**
 **/.ipynb_checkpoints/
 **/iframe_figures/
