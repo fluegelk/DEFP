@@ -172,13 +172,18 @@ def prepare_parameters(dataset, batch_size, test_batch_size, topology, dropout, 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--outpath', type=str, default=None)
+    parser.add_argument('--outpath', type=str, default=None, help='Where to store the outputs.')
 
     parser.add_argument('--dataset', type=str, choices=['regression_synth', 'classification_synth', 'MNIST', 'CIFAR10',
-                                                        'CIFAR10aug'], required=True)
-    parser.add_argument('--topology', type=str, required=True)
+                                                        'CIFAR10aug'], required=True, help='The dataset to train on.')
+    topology_help = 'The network topology of the model to train. Layers are separated by \'_\' and described as' \
+                    'FC_{output units} for fully-connected layers and ' \
+                    'CONV_{output channels}_{kernel size}_{stride}_{padding} for convolutional layers.'
+    parser.add_argument('--topology', type=str, required=True, help=topology_help)
 
-    parser.add_argument('--algorithm', choices=['BP', 'Feed-Forward'], required=True)
+    parser.add_argument('--algorithm', choices=['BP', 'Feed-Forward'], required=True,
+                        help='The training algorithm. BP for back-propagation, Feed-Forward for a '
+                             'feed-forward training approach.')
     parser.add_argument('--feedback-weight-initialization', type=str,
                         help="A torch init function, e.g. 'kaiming_uniform' for torch.nn.init.kaiming_uniform_.")
     parser.add_argument('--ff-implementation', type=str, choices=['true_feed_forward', 'gradient_replacement'],
@@ -186,16 +191,18 @@ def parse_arguments():
                         help="Switch between the new (true_feed_forward) and old (gradient_replacement) implementation"
                              "for feed forward training.")
     parser.add_argument(
-        '--error-information', choices=['targets', 'error', 'error_sign', 'delayed_error', 'delayed_loss'],
-        help="Error information to use with the feed-forward training. DFA corresponds to 'error', sDFA to "
-             "'error_sign', and DRTP to 'targets'", default='targets')
+        '--error-information', choices=['targets', 'delayed_error', 'delayed_loss'],
+        help="Error information to use with the feed-forward training. 'targets' corresponds to DRTP, while "
+             "'delayed_error' and 'delayed_loss' correspond to DEFP with the corresponding delayed information.",
+        default='targets')
 
-    parser.add_argument('--optimizer', choices=['SGD', 'NAG', 'Adam', 'RMSprop'])
-    parser.add_argument('--lr', type=float)
-    parser.add_argument('--lr-scheduler', help='Optional, parsed by training.create_learning_rate_scheduler.', type=str)
+    parser.add_argument('--optimizer', choices=['SGD', 'NAG', 'Adam', 'RMSprop'], help='The optimizer to train with.')
+    parser.add_argument('--lr', type=float, help='The initial learning rate.')
+    parser.add_argument('--lr-scheduler', help='Optional learning rate scheduler, '
+                                               'parsed by training.create_learning_rate_scheduler.', type=str)
 
-    parser.add_argument('--trials', type=int, default=1)
-    parser.add_argument('--epochs', type=int)
+    parser.add_argument('--trials', type=int, default=1, help='The number of independent training runs.')
+    parser.add_argument('--epochs', type=int, help='The number of epochs to train.')
 
     args = parser.parse_args()
 
