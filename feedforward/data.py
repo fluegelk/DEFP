@@ -180,7 +180,8 @@ def get_data_dimensions(dataset):
     return data.shape, len(dataset.classes)
 
 
-def prepare_data(dataset_name, batch_size, test_batch_size, shuffle_train_set=True, data_loader_kwargs=None):
+def prepare_data(dataset_name, batch_size, test_batch_size, shuffle_train_set=True, data_loader_kwargs=None,
+                 dataset_kwargs=None):
     """
     Load the given dataset, create data loaders (for the train, train-test, and test set), and determine the model
     in- and output size corresponding to the selected dataset.
@@ -191,18 +192,20 @@ def prepare_data(dataset_name, batch_size, test_batch_size, shuffle_train_set=Tr
         test_batch_size: The batch size for testing.
         shuffle_train_set: Whether to shuffle the training set, default is True.
         data_loader_kwargs: Optional additional arguments to the data loader constructor.
+        dataset_kwargs: Optional additional arguments to the load_dataset_<name> function.
 
     Returns:
         A 5-tuple of: train data loader, train-test data loader, test data loader, shape of one input sample, number of
         classes.
     """
     data_loader_kwargs = {} if data_loader_kwargs is None else data_loader_kwargs
+    dataset_kwargs = {} if dataset_kwargs is None else dataset_kwargs
 
     load_dataset = {
-        "classification_synth": lambda: load_synthetic_classification_set(),
-        "MNIST": lambda: load_mnist(),
-        "CIFAR10": lambda: load_cifar10(),
-        "CIFAR10aug": lambda: load_cifar10(augment=True),
+        "classification_synth": lambda: load_synthetic_classification_set(**dataset_kwargs),
+        "MNIST": lambda: load_mnist(**dataset_kwargs),
+        "CIFAR10": lambda: load_cifar10(**dataset_kwargs),
+        "CIFAR10aug": lambda: load_cifar10(augment=True, **dataset_kwargs),
     }
 
     if dataset_name not in load_dataset:

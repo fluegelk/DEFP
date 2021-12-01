@@ -8,6 +8,7 @@ import torch
 project_root = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+import feedforward
 from feedforward import main, parameters
 
 
@@ -23,6 +24,10 @@ class TestResultsAtEpoch10:
 
     EPOCH = 10  # the number of epochs to train
     RANDOM_SEED = 0  # the random seed to use
+    DATA_PATH = project_root / 'DATASETS'
+
+    SKIP_REASON_SYNTH_DATA_NOT_AVAILABLE = "classification_synth data not found at {path}. " \
+                                           "Please generate dataset using DRTPs synth_dataset_gen.py"
 
     # the results using the implementation by Frenkel et al. available at
     # https://github.com/ChFrenkel/DirectRandomTargetProjection
@@ -56,6 +61,19 @@ class TestResultsAtEpoch10:
         return data[(data.dataset == dataset) & (data.topology == topology) & (data.train_mode == train_mode)]
 
     @staticmethod
+    def skip_if_data_not_available():
+        path = TestResultsAtEpoch10.get_data_path('classification_synth')
+        try:
+            feedforward.data.load_synthetic_classification_set(path)
+        except FileNotFoundError:
+            pytest.skip(TestResultsAtEpoch10.SKIP_REASON_SYNTH_DATA_NOT_AVAILABLE.format(path))
+
+    @staticmethod
+    def get_data_path(dataset):
+        subdir = 'classification' if dataset == 'classification_synth' else ''
+        return TestResultsAtEpoch10.DATA_PATH / subdir
+
+    @staticmethod
     def prepare_parameters(dataset, topology, train_mode, **kwargs):
         """
         Prepare the parameters for main.run_training based on the given dataset, network topology and training mode, and
@@ -81,7 +99,29 @@ class TestResultsAtEpoch10:
         merged_parameters = {key.replace('-', '_'): value for key, value in merged_parameters.items()}
 
         device, data_kwargs, model_kwargs, training_kwargs = main.prepare_parameters(**merged_parameters)
+        data_kwargs['dataset_kwargs'] = {'path': TestResultsAtEpoch10.get_data_path(dataset)}
+
         return merged_parameters, device, data_kwargs, model_kwargs, training_kwargs
+
+    @staticmethod
+    def run_training(algorithm, device, loss_name, optimizer_name, initial_lr, data_kwargs, model_kwargs,
+                     training_kwargs):
+        torch.manual_seed(TestResultsAtEpoch10.RANDOM_SEED)
+        torch_device = torch.device(device)
+
+        train_loader, train_test_loader, test_loader, input_size, number_of_classes = feedforward.data.prepare_data(
+            **data_kwargs)
+
+        model = feedforward.model.create_model(algorithm, input_size=input_size, **model_kwargs)
+        model.to(torch_device)
+
+        loss = feedforward.training.create_loss_function(loss_name)
+        optimizer = feedforward.training.create_optimizer(optimizer_name, model, lr=initial_lr)
+
+        training = feedforward.training.Training(model, loss, optimizer, None, torch_device, train_loader, train_test_loader, test_loader, number_of_classes=number_of_classes, **training_kwargs)
+        training.train(TestResultsAtEpoch10.EPOCH, algorithm)
+
+        return training.results.build_dataframe()
 
     def run_test(self, dataset, topology, train_mode, implementation='true_feed_forward'):
         """
@@ -97,11 +137,8 @@ class TestResultsAtEpoch10:
         torch.use_deterministic_algorithms(True)
         config, device, data_kwargs, model_kwargs, training_kwargs = self.prepare_parameters(
             dataset, topology, train_mode, epochs=self.EPOCH, verbose=2, implementation=implementation)
-        logging.info(f"Configuration: {config}")
-        model, results, _ = main.run_training(
-            self.RANDOM_SEED, self.EPOCH, config['algorithm'], config['train_mode'], device, config['loss'],
-            config['optimizer'], None, config['lr'], data_kwargs, model_kwargs, training_kwargs)
-
+        results = self.run_training(config['algorithm'], device, config['loss'], config['optimizer'], config['lr'],
+                                    data_kwargs, model_kwargs, training_kwargs)
         actual = results[results.epoch == self.EPOCH][['train_accuracy', 'test_accuracy', 'train_loss', 'test_loss']]
         train_accuracy, test_accuracy, train_loss, test_loss = actual.iloc[0]
 
@@ -113,12 +150,15 @@ class TestResultsAtEpoch10:
         assert pytest.approx(test_loss, abs=0.1) == expected.test_loss.item()
 
     def test_classification_synth_bp_results(self):
+        self.skip_if_data_not_available()
         self.run_test("classification_synth", "FC_256_FC_10", "BP")
 
     def test_classification_synth_drtp_results(self):
+        self.skip_if_data_not_available()
         self.run_test("classification_synth", "FC_256_FC_10", "DRTP")
 
     def test_classification_synth_drtp_results_old_implementation(self):
+        self.skip_if_data_not_available()
         self.run_test("classification_synth", "FC_256_FC_10", "DRTP", "gradient_replacement")
 
     def test_mnist_bp_fc_results(self):
